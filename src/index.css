@@ -1,0 +1,80 @@
+:root {
+  --ink: #17201d;
+  --ink-soft: #4f5b55;
+  --muted: #7a847f;
+  --canvas: #f3f5f1;
+  --surface: #ffffff;
+  --surface-soft: #f8faf7;
+  --line: #dce2dd;
+  --line-strong: #cbd3cd;
+  --teal: #0f766e;
+  --blue: #3b6ea8;
+  --amber: #d97706;
+  --coral: #d5523f;
+  --danger: #b42318;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Manrope Variable', sans-serif;
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--canvas);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  letter-spacing: 0;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background-color: var(--canvas);
+  background-image:
+    linear-gradient(rgba(23, 32, 29, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 32, 29, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a,
+label {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+::selection {
+  color: #ffffff;
+  background: var(--teal);
+}
+
+#root {
+  min-height: 100vh;
+}
