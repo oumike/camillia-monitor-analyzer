@@ -1,0 +1,20 @@
+services:
+  analyzer:
+    build: .
+    image: camillia-monitor-analyzer:latest
+    container_name: camillia-monitor-analyzer
+    restart: unless-stopped
+    ports:
+      - "${ANALYZER_PORT:-3001}:8080"
+    networks:
+      - ingestor
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  ingestor:
+    external: true
+    name: camillia-monitor-ingestor_default

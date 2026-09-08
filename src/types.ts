@@ -44,7 +44,7 @@ export interface HeardNode {
   hwModel: string | null
   hwModelNum: number | null
   role: string | null
-  preset: string | null
+  preset?: string | null
   lastHeardAt: string | null
   lastHeardBy: string | null
   signal: NodeSignal
@@ -73,7 +73,7 @@ export interface HeardMessage {
   toId: string
   toNum: number
   broadcast: boolean
-  preset: string | null
+  preset?: string | null
   portnum: number | null
   portName: string | null
   channel: number | null

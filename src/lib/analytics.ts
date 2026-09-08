@@ -22,6 +22,38 @@ export const RANGE_OPTIONS: ReadonlyArray<{ key: RangeKey; label: string; title:
   { key: 'all', label: 'All', title: 'Latest available records' },
 ]
 
+export const PRESET_FILTER_OPTIONS = [
+  { value: 'all', label: 'All presets' },
+  { value: 'LongFast', label: 'LongFast' },
+  { value: 'LongMod', label: 'LongMod' },
+  { value: 'LongSlow', label: 'LongSlow' },
+  { value: 'LongTurbo', label: 'LongTurbo' },
+  { value: 'MediumFast', label: 'MediumFast' },
+  { value: 'MediumSlow', label: 'MediumSlow' },
+  { value: 'ShortFast', label: 'ShortFast' },
+  { value: 'ShortSlow', label: 'ShortSlow' },
+  { value: 'ShortTurbo', label: 'ShortTurbo' },
+  { value: 'unreported', label: 'Unreported' },
+] as const
+
+export type PresetFilter = (typeof PRESET_FILTER_OPTIONS)[number]['value']
+
+export function filterSnapshotByPreset(
+  snapshot: MonitorSnapshot,
+  preset: PresetFilter,
+): MonitorSnapshot {
+  if (preset === 'all') return snapshot
+
+  const matchesPreset = (value: string | null | undefined): boolean =>
+    preset === 'unreported' ? value === null || value === undefined : value === preset
+
+  return {
+    ...snapshot,
+    nodes: snapshot.nodes.filter((node) => matchesPreset(node.preset)),
+    messages: snapshot.messages.filter((message) => matchesPreset(message.preset)),
+  }
+}
+
 export interface ActivityPoint {
   label: string
   messages: number

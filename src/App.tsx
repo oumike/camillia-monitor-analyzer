@@ -7,6 +7,7 @@ import {
   Clock3,
   Database,
   Hash,
+  ListFilter,
   MapPin,
   MessageSquareText,
   Radio,
@@ -38,7 +39,13 @@ import {
 
 import './App.css'
 import { useMonitorData } from './hooks/useMonitorData'
-import { analyzeSnapshot, RANGE_OPTIONS } from './lib/analytics'
+import {
+  analyzeSnapshot,
+  filterSnapshotByPreset,
+  PRESET_FILTER_OPTIONS,
+  RANGE_OPTIONS,
+  type PresetFilter,
+} from './lib/analytics'
 import { API_BASE_URL } from './lib/api'
 import type { HeardMessage, HeardNode, MonitorStatus, RangeKey } from './types'
 
@@ -214,16 +221,19 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
 
 function App() {
   const [range, setRange] = useState<RangeKey>('24h')
+  const [preset, setPreset] = useState<PresetFilter>('all')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [nodeQuery, setNodeQuery] = useState('')
   const [nodePage, setNodePage] = useState(0)
   const deferredNodeQuery = useDeferredValue(nodeQuery)
   const { snapshot, error, isLoading, isRefreshing, refresh } = useMonitorData(range, autoRefresh)
 
-  const analytics = snapshot ? analyzeSnapshot(snapshot, range) : null
+  const scopedSnapshot = snapshot ? filterSnapshotByPreset(snapshot, preset) : null
+  const analytics = scopedSnapshot ? analyzeSnapshot(scopedSnapshot, range) : null
   const rangeTitle = RANGE_OPTIONS.find((option) => option.key === range)?.title ?? ''
+  const presetTitle = PRESET_FILTER_OPTIONS.find((option) => option.value === preset)?.label ?? preset
   const normalizedQuery = deferredNodeQuery.trim().toLowerCase()
-  const filteredNodes = (snapshot?.nodes ?? []).filter((node) => {
+  const filteredNodes = (scopedSnapshot?.nodes ?? []).filter((node) => {
     if (!normalizedQuery) return true
     return [node.longName, node.shortName, node.nodeId, node.hwModel, node.role, node.preset]
       .filter(Boolean)
@@ -234,7 +244,7 @@ function App() {
   const safeNodePage = Math.min(nodePage, nodePageCount - 1)
   const visibleNodes = filteredNodes.slice(safeNodePage * pageSize, (safeNodePage + 1) * pageSize)
   const nodesById = new Map((snapshot?.nodes ?? []).map((node) => [node.nodeId, node]))
-  const recentMessages = snapshot?.messages.slice(0, 8) ?? []
+  const recentMessages = scopedSnapshot?.messages.slice(0, 8) ?? []
   const topChannels = snapshot?.mqttChannels.slice(0, 7).reverse() ?? []
 
   return (
@@ -248,12 +258,27 @@ function App() {
             <h1>Network overview</h1>
             <p className="page-subtitle">
               {snapshot
-                ? `Snapshot synced ${formatRelative(snapshot.fetchedAt)} · ${rangeTitle}`
+                ? `Snapshot synced ${formatRelative(snapshot.fetchedAt)} · ${rangeTitle} · ${presetTitle}`
                 : 'Connecting to the monitor ingestor'}
             </p>
           </div>
 
           <div className="header-controls">
+            <label className="preset-control">
+              <ListFilter size={15} aria-hidden="true" />
+              <select
+                aria-label="Filter by preset"
+                value={preset}
+                onChange={(event) => {
+                  setPreset(event.target.value as PresetFilter)
+                  setNodePage(0)
+                }}
+              >
+                {PRESET_FILTER_OPTIONS.map((option) => (
+                  <option value={option.value} key={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
             <div className="range-control" aria-label="Analytics time range">
               {RANGE_OPTIONS.map((option) => (
                 <button
@@ -304,21 +329,25 @@ function App() {
         {isLoading ? <LoadingDashboard /> : null}
         {!isLoading && !snapshot && error ? <ErrorState message={error} onRetry={refresh} /> : null}
 
-        {snapshot && analytics ? (
+        {snapshot && scopedSnapshot && analytics ? (
           <div className="dashboard-content">
             <section className="metric-grid" aria-label="Network summary">
               <MetricCard
                 icon={Radio}
                 label="Nodes heard"
                 value={numberFormatter.format(analytics.activeNodes)}
-                detail={`${numberFormatter.format(snapshot.status.mesh.knownNodes)} known overall`}
+                detail={preset === 'all'
+                  ? `${numberFormatter.format(snapshot.status.mesh.knownNodes)} known overall`
+                  : `${numberFormatter.format(snapshot.nodes.length)} heard across all presets`}
                 tone="teal"
               />
               <MetricCard
                 icon={MessageSquareText}
                 label="Packets"
-                value={numberFormatter.format(snapshot.messages.length)}
-                detail={`${compactFormatter.format(snapshot.messageTotal)} stored · ${analytics.messageRate.toFixed(1)}/hr`}
+                value={numberFormatter.format(scopedSnapshot.messages.length)}
+                detail={preset === 'all'
+                  ? `${compactFormatter.format(snapshot.messageTotal)} stored · ${analytics.messageRate.toFixed(1)}/hr`
+                  : `${numberFormatter.format(snapshot.messages.length)} in window · ${analytics.messageRate.toFixed(1)}/hr`}
                 tone="blue"
               />
               <MetricCard
@@ -332,7 +361,9 @@ function App() {
                 icon={Hash}
                 label="Active topics"
                 value={numberFormatter.format(analytics.activeTopics)}
-                detail={`${snapshot.mqttTopicTotal} stored · ${analytics.activeChannels} channels active`}
+                detail={preset === 'all'
+                  ? `${snapshot.mqttTopicTotal} stored · ${analytics.activeChannels} channels active`
+                  : `${snapshot.mqttTopicTotal} stored · preset-independent`}
                 tone="coral"
               />
             </section>
@@ -346,7 +377,7 @@ function App() {
                     <span><i className="legend-blue" />Receptions</span>
                   </div>
                 </div>
-                {snapshot.messages.length > 0 ? (
+                {scopedSnapshot.messages.length > 0 ? (
                   <div className="chart-frame" role="img" aria-label="Packets and receptions over time">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={analytics.activity} margin={{ top: 12, right: 4, left: -16, bottom: 0 }}>
@@ -562,7 +593,7 @@ function App() {
             <section className="section-block" id="mqtt">
               <div className="section-heading">
                 <div><p className="section-kicker">Broker census</p><h2>MQTT activity</h2></div>
-                <p>{snapshot.mqttChannels.length} channels · {snapshot.mqttTopicTotal} topics stored</p>
+                <p>{preset === 'all' ? '' : 'Preset-independent · '}{snapshot.mqttChannels.length} channels · {snapshot.mqttTopicTotal} topics stored</p>
               </div>
               <div className="analytics-grid split-even">
                 <article className="panel">
